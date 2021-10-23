@@ -1,0 +1,6 @@
+{
+    "board": "Intel:arc32:arduino_101",
+    "sketch": "WalkingStaff.ino",
+    "port": "COM12",
+    "programmer": "AVR ISP"
+}
