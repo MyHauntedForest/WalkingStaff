@@ -8,6 +8,11 @@ Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUM_LEDS, PIN, NEO_GRB + NEO_KHZ800)
 
 bool tap = false;
 
+int hue = 13;
+uint8_t colors[3];
+
+// TODO: Figure out array of colors I like
+
 void setup()
 {
 
@@ -31,6 +36,7 @@ void setup()
 
 void loop()
 {
+  // tap = true;
   doSpells();
 
   // rainbow(10);
@@ -41,8 +47,17 @@ void doSpells()
   if (tap)
   {
     tap = false;
-    meteorRain(255, 115, 0, 10, 64, true, 30);
-    delay(1000);
+    // meteorRain(255, 115, 0, 10, 64, true, 30);
+
+    HSVtoRGB(hue, 255, 255, colors);
+
+    meteorRain(colors[0], colors[1], colors[2], 10, 64, true, 30);
+    hue += 27;
+    if (hue > 255)
+    {
+      hue = 13;
+    }
+    // delay(1000);
   }
 }
 
@@ -89,6 +104,54 @@ void meteorRain(byte red, byte green, byte blue, byte meteorSize, byte meteorTra
 
     strip.show();
     delay(SpeedDelay);
+  }
+}
+
+void HSVtoRGB(int hue, int sat, int val, uint8_t *colors)
+{
+  int r, g, b, base;
+  if (sat == 0)
+  { // Achromatic color (gray).
+    colors[0] = val;
+    colors[1] = val;
+    colors[2] = val;
+  }
+  else
+  {
+    base = ((255 - sat) * val) >> 8;
+    switch (hue / 60)
+    {
+    case 0:
+      colors[0] = val;
+      colors[1] = (((val - base) * hue) / 60) + base;
+      colors[2] = base;
+      break;
+    case 1:
+      colors[0] = (((val - base) * (60 - (hue % 60))) / 60) + base;
+      colors[1] = val;
+      colors[2] = base;
+      break;
+    case 2:
+      colors[0] = base;
+      colors[1] = val;
+      colors[2] = (((val - base) * (hue % 60)) / 60) + base;
+      break;
+    case 3:
+      colors[0] = base;
+      colors[1] = (((val - base) * (60 - (hue % 60))) / 60) + base;
+      colors[2] = val;
+      break;
+    case 4:
+      colors[0] = (((val - base) * (hue % 60)) / 60) + base;
+      colors[1] = base;
+      colors[2] = val;
+      break;
+    case 5:
+      colors[0] = val;
+      colors[1] = base;
+      colors[2] = (((val - base) * (60 - (hue % 60))) / 60) + base;
+      break;
+    }
   }
 }
 
