@@ -6,17 +6,31 @@
 #define NUM_LEDS 60
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUM_LEDS, PIN, NEO_GRB + NEO_KHZ800);
 
-bool tap = false;
+long globaltimer = 0;
+int tap = 0;
 
-int hue = 13;
+enum State
+{
+  RAINBOW,
+  OLD_EFFECT_TWINKLE,
+  OLD_EFFECT_METEOR,
+  SOLID_ORANGE,
+  SOLID_RED,
+  SOLID_WHITE,
+  OFF
+};
+
+State currentState = RAINBOW;
+
+int hue = 0;
 uint8_t colors[3];
-
-// TODO: Figure out array of colors I like
 
 void setup()
 {
+  Serial.begin(9600);
 
-  /* Initialise the IMU */
+  globaltimer = millis();
+
   CurieIMU.begin();
   CurieIMU.attachInterrupt(eventCallback);
 
@@ -25,86 +39,101 @@ void setup()
   CurieIMU.setDetectionDuration(CURIE_IMU_SHOCK, 50);    // milliseconds of spike required to call interupt
   CurieIMU.interrupts(CURIE_IMU_SHOCK);
 
-  // Go green for 3 seconds to let us know we have turned on the staff
-  strip.begin();
-  fill(0, 255, 0);
-  strip.show();
-  delay(3000);
-  fill(0, 0, 0);
-  strip.show();
+  strip.begin(); //  intialize neopixel strip
+  strip.show();  // Initialize all pixels to 'off'
 }
 
 void loop()
 {
-  // tap = true;
-  doSpells();
 
-  // rainbow(10);
-}
-
-void doSpells()
-{
-  if (tap)
+  // every 1000 ms, lets reset the tap timer
+  if (millis() - globaltimer > 1000)
   {
-    tap = false;
-    // meteorRain(255, 115, 0, 10, 64, true, 30);
+    globaltimer = millis() - 170;
+    tap = 0;
+  }
 
+  if (currentState == RAINBOW)
+  {
     HSVtoRGB(hue, 255, 255, colors);
 
-    meteorRain(colors[0], colors[1], colors[2], 10, 64, true, 30);
-    hue += 27;
+    if (random(10) == 9)
+    {
+      hue++;
+    }
+
     if (hue > 255)
     {
-      hue = 13;
+      hue = 0;
     }
-    // delay(1000);
+
+    twinkle(colors[0], colors[1], colors[2]);
+  }
+  else if (currentState == OLD_EFFECT_METEOR)
+  {
+    meteorRain(255, 115, 0, 10, 64, true, 30);
+  }
+  else if (currentState == OLD_EFFECT_TWINKLE)
+  {
+    twinkle(255, 115, 0);
+  }
+  else if (currentState == SOLID_ORANGE)
+  {
+    fill(255, 115, 0);
+  }
+  else if (currentState == SOLID_WHITE)
+  {
+    fill(128, 128, 128);
+  }
+  else if (currentState == SOLID_RED)
+  {
+    fill(255, 0, 0);
   }
 }
 
-static void eventCallback(void)
+void switchState()
 {
-  if (CurieIMU.getInterruptStatus(CURIE_IMU_SHOCK))
+  switch (currentState)
   {
-    if (CurieIMU.shockDetected(X_AXIS, POSITIVE))
-    {
-      tap = true;
-    }
-
-    // if (CurieIMU.shockDetected(X_AXIS, NEGATIVE))
-    // {
-    //   tap = true;
-    // }
+  case RAINBOW:
+    currentState = OLD_EFFECT_TWINKLE;
+    break;
+  case OLD_EFFECT_TWINKLE:
+    currentState = OLD_EFFECT_METEOR;
+    break;
+  case OLD_EFFECT_METEOR:
+    currentState = SOLID_ORANGE;
+    break;
+  case SOLID_ORANGE:
+    currentState = SOLID_RED;
+    break;
+  case SOLID_WHITE:
+    currentState = SOLID_RED;
+    break;
+  case SOLID_RED:
+    currentState = OFF;
+    break;
+  case OFF:
+    currentState = RAINBOW;
+    break;
   }
 }
 
-void meteorRain(byte red, byte green, byte blue, byte meteorSize, byte meteorTrailDecay, boolean meteorRandomDecay, int SpeedDelay)
+void twinkle(byte r, byte g, byte b)
 {
-  fill(0, 0, 0);
 
-  for (int i = 0; i < NUM_LEDS + NUM_LEDS; i++)
+  for (int i = 0; i < NUM_LEDS; i++)
   {
 
-    // fade brightness all LEDs one step
-    for (int j = 0; j < NUM_LEDS; j++)
+    if (random(50) > 48)
     {
-      if ((!meteorRandomDecay) || (random(10) > 5))
-      {
-        fadeToBlack(j, meteorTrailDecay);
-      }
+      strip.setPixelColor(i, r, g, b);
     }
 
-    // draw meteor
-    for (int j = 0; j < meteorSize; j++)
-    {
-      if ((i - j < NUM_LEDS) && (i - j >= 0))
-      {
-        strip.setPixelColor(i - j, red, green, blue);
-      }
-    }
-
-    strip.show();
-    delay(SpeedDelay);
+    fadeToBlack(i, 30);
   }
+  strip.show();
+  delay(30);
 }
 
 void HSVtoRGB(int hue, int sat, int val, uint8_t *colors)
@@ -161,6 +190,7 @@ void fill(byte r, byte g, byte b)
   {
     strip.setPixelColor(i, strip.Color(r, g, b));
   }
+  strip.show();
 }
 
 void fadeToBlack(int ledNo, byte fadeValue)
@@ -193,5 +223,52 @@ void rainbow(int wait)
     }
     strip.show();
     delay(wait);
+  }
+}
+
+void meteorRain(byte red, byte green, byte blue, byte meteorSize, byte meteorTrailDecay, boolean meteorRandomDecay, int SpeedDelay)
+{
+  fill(0, 0, 0);
+
+  for (int i = 0; i < NUM_LEDS + NUM_LEDS; i++)
+  {
+
+    // fade brightness all LEDs one step
+    for (int j = 0; j < NUM_LEDS; j++)
+    {
+      if ((!meteorRandomDecay) || (random(10) > 5))
+      {
+        fadeToBlack(j, meteorTrailDecay);
+      }
+    }
+
+    // draw meteor
+    for (int j = 0; j < meteorSize; j++)
+    {
+      if ((i - j < NUM_LEDS) && (i - j >= 0))
+      {
+        strip.setPixelColor(i - j, red, green, blue);
+      }
+    }
+
+    strip.show();
+    delay(SpeedDelay);
+  }
+}
+
+static void eventCallback(void)
+{
+  if (CurieIMU.getInterruptStatus(CURIE_IMU_SHOCK))
+  {
+    if (CurieIMU.shockDetected(X_AXIS, POSITIVE) || CurieIMU.shockDetected(X_AXIS, NEGATIVE))
+    {
+      tap++;
+      globaltimer = millis();
+
+      if (tap >= 2)
+      {
+        switchState();
+      }
+    }
   }
 }
