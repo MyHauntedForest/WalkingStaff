@@ -23,7 +23,6 @@ enum State
 State currentState = RAINBOW;
 
 int hue = 0;
-uint8_t colors[3];
 
 void setup()
 {
@@ -39,8 +38,9 @@ void setup()
   CurieIMU.setDetectionDuration(CURIE_IMU_SHOCK, 50);    // milliseconds of spike required to call interupt
   CurieIMU.interrupts(CURIE_IMU_SHOCK);
 
-  strip.begin(); //  intialize neopixel strip
-  strip.show();  // Initialize all pixels to 'off'
+  strip.begin();            //  intialize neopixel strip
+  strip.setBrightness(128); // half brightness
+  strip.show();             // Initialize all pixels to 'off'
 }
 
 void loop()
@@ -55,7 +55,6 @@ void loop()
 
   if (currentState == RAINBOW)
   {
-    HSVtoRGB(hue, 255, 255, colors);
 
     if (random(10) == 9)
     {
@@ -67,7 +66,7 @@ void loop()
       hue = 0;
     }
 
-    twinkle(colors[0], colors[1], colors[2]);
+    twinkle(strip.gamma32(strip.ColorHSV(hue)));
   }
   else if (currentState == OLD_EFFECT_METEOR)
   {
@@ -105,7 +104,7 @@ void switchState()
     currentState = SOLID_ORANGE;
     break;
   case SOLID_ORANGE:
-    currentState = SOLID_RED;
+    currentState = SOLID_WHITE;
     break;
   case SOLID_WHITE:
     currentState = SOLID_RED;
@@ -121,67 +120,24 @@ void switchState()
 
 void twinkle(byte r, byte g, byte b)
 {
+  twinkle(strip.Color(r, g, b));
+}
+
+void twinkle(uint8_t color)
+{
 
   for (int i = 0; i < NUM_LEDS; i++)
   {
 
     if (random(50) > 48)
     {
-      strip.setPixelColor(i, r, g, b);
+      strip.setPixelColor(i, color);
     }
 
     fadeToBlack(i, 30);
   }
   strip.show();
   delay(30);
-}
-
-void HSVtoRGB(int hue, int sat, int val, uint8_t *colors)
-{
-  int r, g, b, base;
-  if (sat == 0)
-  { // Achromatic color (gray).
-    colors[0] = val;
-    colors[1] = val;
-    colors[2] = val;
-  }
-  else
-  {
-    base = ((255 - sat) * val) >> 8;
-    switch (hue / 60)
-    {
-    case 0:
-      colors[0] = val;
-      colors[1] = (((val - base) * hue) / 60) + base;
-      colors[2] = base;
-      break;
-    case 1:
-      colors[0] = (((val - base) * (60 - (hue % 60))) / 60) + base;
-      colors[1] = val;
-      colors[2] = base;
-      break;
-    case 2:
-      colors[0] = base;
-      colors[1] = val;
-      colors[2] = (((val - base) * (hue % 60)) / 60) + base;
-      break;
-    case 3:
-      colors[0] = base;
-      colors[1] = (((val - base) * (60 - (hue % 60))) / 60) + base;
-      colors[2] = val;
-      break;
-    case 4:
-      colors[0] = (((val - base) * (hue % 60)) / 60) + base;
-      colors[1] = base;
-      colors[2] = val;
-      break;
-    case 5:
-      colors[0] = val;
-      colors[1] = base;
-      colors[2] = (((val - base) * (60 - (hue % 60))) / 60) + base;
-      break;
-    }
-  }
 }
 
 void fill(byte r, byte g, byte b)
@@ -267,7 +223,7 @@ static void eventCallback(void)
 
       if (tap >= 2)
       {
-        switchState();
+        // switchState();
       }
     }
   }

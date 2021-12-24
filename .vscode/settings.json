@@ -1,6 +1,12 @@
 {
     "editor.formatOnSave": true,
     "files.associations": {
-        "cstddef": "cpp"
+        "cstddef": "cpp",
+        "iosfwd": "cpp",
+        "xlocbuf": "cpp",
+        "array": "cpp",
+        "ios": "cpp",
+        "xutility": "cpp",
+        "*.tcc": "cpp"
     },
 }

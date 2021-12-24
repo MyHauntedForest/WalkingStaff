@@ -1,0 +1,122 @@
+#include <Adafruit_NeoPixel.h>
+
+#define PIN 6
+#define NUM_LEDS 60
+Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUM_LEDS, PIN, NEO_GRB + NEO_KHZ800);
+
+int hue = 0;
+uint8_t colors[3];
+
+void setup()
+{
+    strip.begin();
+    strip.show();
+}
+
+void loop()
+{
+    HSVtoRGB(hue, 255, 255, colors);
+
+    if (random(10) == 9)
+    {
+        hue++;
+    }
+
+    if (hue > 255)
+    {
+        hue = 0;
+    }
+
+    fadeTest(colors[0], colors[1], colors[2]);
+}
+
+void fadeTest(byte r, byte g, byte b)
+{
+
+    for (int i = 0; i < NUM_LEDS; i++)
+    {
+
+        if (random(50) > 48)
+        {
+            strip.setPixelColor(i, r, g, b);
+        }
+
+        fadeToBlack(i, 30);
+    }
+    strip.show();
+    delay(30);
+}
+
+void HSVtoRGB(int hue, int sat, int val, uint8_t *colors)
+{
+    int r, g, b, base;
+    if (sat == 0)
+    { // Achromatic color (gray).
+        colors[0] = val;
+        colors[1] = val;
+        colors[2] = val;
+    }
+    else
+    {
+        base = ((255 - sat) * val) >> 8;
+        switch (hue / 60)
+        {
+        case 0:
+            colors[0] = val;
+            colors[1] = (((val - base) * hue) / 60) + base;
+            colors[2] = base;
+            break;
+        case 1:
+            colors[0] = (((val - base) * (60 - (hue % 60))) / 60) + base;
+            colors[1] = val;
+            colors[2] = base;
+            break;
+        case 2:
+            colors[0] = base;
+            colors[1] = val;
+            colors[2] = (((val - base) * (hue % 60)) / 60) + base;
+            break;
+        case 3:
+            colors[0] = base;
+            colors[1] = (((val - base) * (60 - (hue % 60))) / 60) + base;
+            colors[2] = val;
+            break;
+        case 4:
+            colors[0] = (((val - base) * (hue % 60)) / 60) + base;
+            colors[1] = base;
+            colors[2] = val;
+            break;
+        case 5:
+            colors[0] = val;
+            colors[1] = base;
+            colors[2] = (((val - base) * (60 - (hue % 60))) / 60) + base;
+            break;
+        }
+    }
+}
+
+void fill(byte r, byte g, byte b)
+{
+    for (int i = 0; i < NUM_LEDS; i++)
+    {
+        strip.setPixelColor(i, strip.Color(r, g, b));
+    }
+}
+
+void fadeToBlack(int ledNo, byte fadeValue)
+{
+    uint32_t oldColor;
+    uint8_t r, g, b;
+    int value;
+
+    oldColor = strip.getPixelColor(ledNo);
+    r = (oldColor & 0x00ff0000UL) >> 16;
+    g = (oldColor & 0x0000ff00UL) >> 8;
+    b = (oldColor & 0x000000ffUL);
+
+    r = (r <= 10) ? 0 : (int)r - (r * fadeValue / 256);
+    g = (g <= 10) ? 0 : (int)g - (g * fadeValue / 256);
+    b = (b <= 10) ? 0 : (int)b - (b * fadeValue / 256);
+
+    strip.setPixelColor(ledNo, r, g, b);
+}
