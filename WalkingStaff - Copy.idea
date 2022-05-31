@@ -1,8 +1,6 @@
 #include <Adafruit_NeoPixel.h>
 #include <BMI160.h>
 #include <CurieIMU.h>
-#include <Bounce2.h>
-#include "Animations.h"
 
 #define PIN 6
 #define NUM_LEDS 60
@@ -26,17 +24,9 @@ State currentState = RAINBOW;
 
 int hue = 0;
 
-Bounce button = Bounce();
-
 void setup()
 {
   Serial.begin(9600);
-
-  pinMode(8, OUTPUT);
-  digitalWrite(8, LOW); // make 8 a "GND" pin
-
-  button.attach(9, INPUT_PULLUP); // Attach the debouncer to a pin with INPUT_PULLUP mode
-  button.interval(25);            // Use a debounce interval of 25 milliseconds
 
   globaltimer = millis();
 
@@ -44,49 +34,25 @@ void setup()
   CurieIMU.attachInterrupt(eventCallback);
 
   /* Enable Shock Detection */
-  CurieIMU.setAccelerometerRange(4);                     // https://docs.arduino.cc/retired/archived-libraries/CurieIMU#setaccelerometerrange
-  CurieIMU.setDetectionThreshold(CURIE_IMU_SHOCK, 3000); // 1.5g = 1500 mg //https://docs.arduino.cc/retired/archived-libraries/CurieIMU#setdetectionthreshold
+  CurieIMU.setDetectionThreshold(CURIE_IMU_SHOCK, 1500); // 1.5g = 1500 mg
   CurieIMU.setDetectionDuration(CURIE_IMU_SHOCK, 50);    // milliseconds of spike required to call interupt
   CurieIMU.interrupts(CURIE_IMU_SHOCK);
 
   strip.begin();            //  intialize neopixel strip
   strip.setBrightness(128); // half brightness
   strip.show();             // Initialize all pixels to 'off'
-
-  fill(255, 0, 0);
-  fancyDelay(500);
-  fill(0, 255, 0);
-  fancyDelay(500);
-  fill(0, 0, 255);
-  fancyDelay(500);
 }
 
 void loop()
 {
 
-  updateButton();
-
   // every 1000 ms, lets reset the tap timer
   if (millis() - globaltimer > 1000)
   {
-    globaltimer = millis();
+    globaltimer = millis() - 170;
     tap = 0;
   }
 
-  updateAnimation();
-}
-
-void updateButton()
-{
-  button.update(); // Update the Bounce instance
-  if (button.fell())
-  {
-    switchStateAll();
-  }
-}
-
-void updateAnimation()
-{
   if (currentState == RAINBOW)
   {
 
@@ -100,12 +66,7 @@ void updateAnimation()
       hue = 0;
     }
 
-    uint16_t newHue = mapStupidHack(hue, 0, 255, 0, 65535);
-
-    twinkle(strip.ColorHSV(newHue));
-    // twinkle(255, 0, 0);
-    // twinkle(0, 255, 0);
-    // twinkle(0, 0, 255);
+    twinkle(strip.gamma32(strip.ColorHSV(hue)));
   }
   else if (currentState == OLD_EFFECT_METEOR)
   {
@@ -127,13 +88,9 @@ void updateAnimation()
   {
     fill(255, 0, 0);
   }
-  else if (currentState == OFF)
-  {
-    fill(0, 0, 0);
-  }
 }
 
-void switchStateAll()
+void switchState()
 {
   switch (currentState)
   {
@@ -161,28 +118,12 @@ void switchStateAll()
   }
 }
 
-void switchState2()
-{
-  switch (currentState)
-  {
-  case RAINBOW:
-    currentState = SOLID_RED;
-    break;
-  case SOLID_RED:
-    currentState = SOLID_WHITE;
-    break;
-  case SOLID_WHITE:
-    currentState = RAINBOW;
-    break;
-  }
-}
-
 void twinkle(byte r, byte g, byte b)
 {
   twinkle(strip.Color(r, g, b));
 }
 
-void twinkle(uint32_t color)
+void twinkle(uint8_t color)
 {
 
   for (int i = 0; i < NUM_LEDS; i++)
@@ -196,14 +137,14 @@ void twinkle(uint32_t color)
     fadeToBlack(i, 30);
   }
   strip.show();
-  fancyDelay(30);
+  delay(30);
 }
 
 void fill(byte r, byte g, byte b)
 {
   for (int i = 0; i < NUM_LEDS; i++)
   {
-    strip.setPixelColor(i, r, g, b);
+    strip.setPixelColor(i, strip.Color(r, g, b));
   }
   strip.show();
 }
@@ -212,6 +153,7 @@ void fadeToBlack(int ledNo, byte fadeValue)
 {
   uint32_t oldColor;
   uint8_t r, g, b;
+  int value;
 
   oldColor = strip.getPixelColor(ledNo);
   r = (oldColor & 0x00ff0000UL) >> 16;
@@ -225,7 +167,7 @@ void fadeToBlack(int ledNo, byte fadeValue)
   strip.setPixelColor(ledNo, r, g, b);
 }
 
-// Rainbow cycle along whole strip. Pass fancyDelay time (in ms) between frames.
+// Rainbow cycle along whole strip. Pass delay time (in ms) between frames.
 void rainbow(int wait)
 {
   for (long firstPixelHue = 0; firstPixelHue < 5 * 65536; firstPixelHue += 256)
@@ -236,14 +178,11 @@ void rainbow(int wait)
       strip.setPixelColor(i, strip.gamma32(strip.ColorHSV(pixelHue)));
     }
     strip.show();
-    if (fancyDelay(wait))
-    {
-      return;
-    }
+    delay(wait);
   }
 }
 
-void meteorRain(byte red, byte green, byte blue, byte meteorSize, byte meteorTrailDecay, boolean meteorRandomDecay, int SpeedfancyDelay)
+void meteorRain(byte red, byte green, byte blue, byte meteorSize, byte meteorTrailDecay, boolean meteorRandomDecay, int SpeedDelay)
 {
   fill(0, 0, 0);
 
@@ -269,44 +208,23 @@ void meteorRain(byte red, byte green, byte blue, byte meteorSize, byte meteorTra
     }
 
     strip.show();
-    if (fancyDelay(SpeedfancyDelay))
-    {
-      return;
-    }
+    delay(SpeedDelay);
   }
-}
-
-uint16_t mapStupidHack(uint16_t x, uint16_t in_min, uint16_t in_max, uint16_t out_min, uint16_t out_max)
-{
-  return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
-}
-
-bool fancyDelay(long ms)
-{
-  State lastState = currentState;
-  unsigned long start = millis();
-  unsigned long end = start + ms;
-  while (millis() < end)
-  {
-    updateButton();
-  }
-  return currentState != lastState;
 }
 
 static void eventCallback(void)
 {
   if (CurieIMU.getInterruptStatus(CURIE_IMU_SHOCK))
   {
-    if (CurieIMU.shockDetected(X_AXIS, POSITIVE))
+    if (CurieIMU.shockDetected(X_AXIS, POSITIVE) || CurieIMU.shockDetected(X_AXIS, NEGATIVE))
     {
       tap++;
       globaltimer = millis();
 
       if (tap >= 2)
       {
-        switchState2();
+        // switchState();
       }
-      // switchState2();
     }
   }
 }
