@@ -1,6 +1,8 @@
 #include "Animations.h"
 #include "WalkingStaff.h"
 
+// modified from https://www.tweaking4all.com/hardware/arduino/adruino-led-strip-effects/
+
 void twinkle(byte r, byte g, byte b)
 {
     twinkle(strip.Color(r, g, b));
