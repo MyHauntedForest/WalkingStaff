@@ -72,7 +72,7 @@
                 "CONFIG_BLUETOOTH_CENTRAL",
                 "CONFIG_BLUETOOTH_GATT_CLIENT",
                 "F_CPU=32000000L",
-                "ARDUINO=10810",
+                "ARDUINO=10607",
                 "ARDUINO_ARC32_TOOLS",
                 "ARDUINO_ARCH_ARC32",
                 "__CPU_ARC__",
