@@ -1,22 +1,20 @@
 #include <Adafruit_NeoPixel.h>
-#include <BMI160.h>
-#include <CurieIMU.h>
 #include <Bounce2.h>
 #include "Animations.h"
 #include "WalkingStaff.h"
 
-#define PIN 6
+#define PIN_LED D0
+#define PIN_BUTTON D1
+#define VIRTUAL_GND_PIN D2
 
-Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUM_LEDS, PIN, NEO_GRB + NEO_KHZ800);
-
-long globaltimer = 0;
-int tap = 0;
+Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUM_LEDS, PIN_LED, NEO_GRB + NEO_KHZ800);
 
 enum State
 {
   RAINBOW,
   OLD_EFFECT_TWINKLE,
   OLD_EFFECT_METEOR,
+  DISCO,
   SOLID_ORANGE,
   SOLID_RED,
   SOLID_WHITE,
@@ -31,28 +29,20 @@ Bounce button = Bounce();
 
 void setup()
 {
-  Serial.begin(9600);
+  // Serial.begin(9600);
 
-  pinMode(8, OUTPUT);
-  digitalWrite(8, LOW); // make 8 a "GND" pin
+  randomSeed(analogRead(A8));
 
-  button.attach(9, INPUT_PULLUP); // Attach the debouncer to a pin with INPUT_PULLUP mode
-  button.interval(25);            // Use a debounce interval of 25 milliseconds
+  pinMode(VIRTUAL_GND_PIN, OUTPUT);
+  digitalWrite(VIRTUAL_GND_PIN, LOW); // make 8 a "GND" pin
 
-  globaltimer = millis();
+  button.attach(PIN_BUTTON, INPUT_PULLUP); // Attach the debouncer to a pin with INPUT_PULLUP mode
+  button.interval(25);                     // Use a debounce interval of 25 milliseconds
 
-  CurieIMU.begin();
-  CurieIMU.attachInterrupt(eventCallback);
-
-  /* Enable Shock Detection */
-  CurieIMU.setAccelerometerRange(4);                     // https://docs.arduino.cc/retired/archived-libraries/CurieIMU#setaccelerometerrange
-  CurieIMU.setDetectionThreshold(CURIE_IMU_SHOCK, 3000); // 1.5g = 1500 mg //https://docs.arduino.cc/retired/archived-libraries/CurieIMU#setdetectionthreshold
-  CurieIMU.setDetectionDuration(CURIE_IMU_SHOCK, 50);    // milliseconds of spike required to call interupt
-  CurieIMU.interrupts(CURIE_IMU_SHOCK);
-
-  strip.begin();            //  intialize neopixel strip
-  strip.setBrightness(128); // half brightness
-  strip.show();             // Initialize all pixels to 'off'
+  strip.begin(); //  intialize neopixel strip
+  strip.setBrightness(255);
+  // strip.setBrightness(128); // half brightness
+  strip.show(); // Initialize all pixels to 'off'
 
   fill(255, 0, 0);
   fancyDelay(500);
@@ -64,16 +54,7 @@ void setup()
 
 void loop()
 {
-
   updateButton();
-
-  // every 1000 ms, lets reset the tap timer
-  if (millis() - globaltimer > 1000)
-  {
-    globaltimer = millis();
-    tap = 0;
-  }
-
   updateAnimation();
 }
 
@@ -82,12 +63,13 @@ void updateButton()
   button.update(); // Update the Bounce instance
   if (button.fell())
   {
-    switchStateAll();
+    switchEffect();
   }
 }
 
 void updateAnimation()
 {
+
   if (currentState == RAINBOW)
   {
 
@@ -104,9 +86,6 @@ void updateAnimation()
     uint16_t newHue = mapStupidHack(hue, 0, 255, 0, 65535);
 
     twinkle(strip.ColorHSV(newHue));
-    // twinkle(255, 0, 0);
-    // twinkle(0, 255, 0);
-    // twinkle(0, 0, 255);
   }
   else if (currentState == OLD_EFFECT_METEOR)
   {
@@ -115,6 +94,11 @@ void updateAnimation()
   else if (currentState == OLD_EFFECT_TWINKLE)
   {
     twinkle(255, 115, 0);
+  }
+  else if (currentState == DISCO)
+  {
+    uint16_t randomHue = random(65535);
+    twinkle(strip.ColorHSV(randomHue));
   }
   else if (currentState == SOLID_ORANGE)
   {
@@ -134,7 +118,7 @@ void updateAnimation()
   }
 }
 
-void switchStateAll()
+void switchEffect()
 {
   switch (currentState)
   {
@@ -145,6 +129,9 @@ void switchStateAll()
     currentState = OLD_EFFECT_METEOR;
     break;
   case OLD_EFFECT_METEOR:
+    currentState = DISCO;
+    break;
+  case DISCO:
     currentState = SOLID_ORANGE;
     break;
   case SOLID_ORANGE:
@@ -157,22 +144,6 @@ void switchStateAll()
     currentState = OFF;
     break;
   case OFF:
-    currentState = RAINBOW;
-    break;
-  }
-}
-
-void switchState2()
-{
-  switch (currentState)
-  {
-  case RAINBOW:
-    currentState = SOLID_RED;
-    break;
-  case SOLID_RED:
-    currentState = SOLID_WHITE;
-    break;
-  case SOLID_WHITE:
     currentState = RAINBOW;
     break;
   }
@@ -193,22 +164,4 @@ bool fancyDelay(long ms)
     updateButton();
   }
   return currentState != lastState;
-}
-
-static void eventCallback(void)
-{
-  if (CurieIMU.getInterruptStatus(CURIE_IMU_SHOCK))
-  {
-    if (CurieIMU.shockDetected(X_AXIS, POSITIVE))
-    {
-      tap++;
-      globaltimer = millis();
-
-      if (tap >= 2)
-      {
-        switchState2();
-      }
-      // switchState2();
-    }
-  }
 }
